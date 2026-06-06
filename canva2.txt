@@ -1,0 +1,46 @@
+(function () {
+  const iframe = document.querySelector('iframe');
+  const srcdoc = iframe.getAttribute('srcdoc') || '';
+
+  // Decode HTML entities (&amp; -> &, &quot; -> ", dll)
+  const txt = document.createElement('textarea');
+  txt.innerHTML = srcdoc;
+  const decoded = txt.value;
+
+  // Regex ekstrak semua canva.com URL dari downloadLink
+  const regex = /downloadLink:\s*["'`](https:\/\/www\.canva\.com\/[^"'`\s]+)["'`]/g;
+
+  let canvaLinks = [];
+  let match;
+  while ((match = regex.exec(decoded)) !== null) {
+    canvaLinks.push(match[1]);
+  }
+
+  console.log(`✅ Ditemukan: ${canvaLinks.length} link Canva`);
+
+  if (canvaLinks.length === 0) {
+    console.warn('Tidak ada link ditemukan, cek sample decoded:');
+    // Tampilkan potongan sekitar kata "canva" untuk debug
+    const idx = decoded.indexOf('canva.com');
+    if (idx > -1) {
+      console.log('Sample sekitar canva.com:', decoded.substring(idx - 50, idx + 150));
+    }
+    return;
+  }
+
+  // Deduplikasi
+  const unique = [...new Set(canvaLinks)];
+  console.log(`✅ Unique: ${unique.length} link`);
+
+  // Export CSV
+  const csvHeader = 'No,URL\n';
+  const csvRows = unique.map((url, i) => `${i + 1},"${url}"`).join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'canva_links.csv';
+  a.click();
+
+  console.log('✅ CSV berhasil diunduh!');
+})();
