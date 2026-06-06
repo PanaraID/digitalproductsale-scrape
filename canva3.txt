@@ -1,0 +1,60 @@
+(function () {
+  const iframe = document.querySelector('iframe[srcdoc]');
+  if (!iframe) { console.warn('Tidak ada iframe dengan srcdoc'); return; }
+
+  const rawSrcdoc = iframe.getAttribute('srcdoc');
+  const txt = document.createElement('textarea');
+  txt.innerHTML = rawSrcdoc;
+  const decoded = txt.value;
+
+  console.log('srcdoc decoded length:', decoded.length);
+
+  // Pakai "link:" karena di DILANKU 2.0 field-nya "link" bukan "downloadLink"
+  const regex = /link:\s*["']([^"']*canva\.com[^"']*)/g;
+
+  let canvaLinks = [];
+  let match;
+  while ((match = regex.exec(decoded)) !== null) {
+    canvaLinks.push(match[1]);
+  }
+
+  console.log(`Ditemukan: ${canvaLinks.length} link Canva`);
+
+  if (canvaLinks.length === 0) {
+    const idx = decoded.indexOf('canva.com');
+    console.log('canva.com ada di index:', idx);
+    if (idx > -1) console.log('Konteks:', decoded.substring(idx - 60, idx + 100));
+    return;
+  }
+
+  const unique = [...new Set(canvaLinks)];
+  console.log(`Unique: ${unique.length} link`);
+
+  // Ekstrak dengan title
+  const titleRegex = /title:\s*["']([^"']+)["'][^}]*?link:\s*["']([^"']*canva\.com[^"']*)/g;
+  let withTitles = [];
+  let m2;
+  while ((m2 = titleRegex.exec(decoded)) !== null) {
+    withTitles.push({ title: m2[1], url: m2[2] });
+  }
+
+  const csvHeader = 'No,Title,URL\n';
+  let csvRows;
+
+  if (withTitles.length > 0) {
+    csvRows = withTitles.map((item, i) =>
+      `${i + 1},"${item.title.replace(/"/g, '""')}","${item.url.replace(/"/g, '""')}"`
+    ).join('\n');
+    console.log(`Export dengan title: ${withTitles.length} baris`);
+  } else {
+    csvRows = unique.map((url, i) => `${i + 1},"","${url}"`).join('\n');
+  }
+
+  const blob = new Blob(['\uFEFF' + csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'dilanku2_canva_links.csv';
+  a.click();
+
+  console.log('✅ CSV berhasil diunduh!');
+})();
